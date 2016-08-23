@@ -2210,6 +2210,20 @@ static void pc_machine_set_pit(Object *obj, bool value, Error **errp)
     pcms->pit = value;
 }
 
+static bool pc_machine_get_static_prt(Object *obj, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    return pcms->static_prt;
+}
+
+static void pc_machine_set_static_prt(Object *obj, bool value, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    pcms->static_prt = value;
+}
+
 static void pc_machine_initfn(Object *obj)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
@@ -2224,6 +2238,7 @@ static void pc_machine_initfn(Object *obj)
     pcms->smbus = true;
     pcms->sata = true;
     pcms->pit = true;
+    pcms->static_prt = true;
 }
 
 static void pc_machine_reset(void)
@@ -2372,6 +2387,10 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
 
     object_class_property_add_bool(oc, PC_MACHINE_PIT,
         pc_machine_get_pit, pc_machine_set_pit, &error_abort);
+
+    object_class_property_add_bool(oc, PC_MACHINE_STATIC_PRT,
+        pc_machine_get_static_prt, pc_machine_set_static_prt, &error_abort);
+
 }
 
 static const TypeInfo pc_machine_info = {

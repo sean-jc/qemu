@@ -66,6 +66,7 @@ struct PCMachineState {
     bool smbus;
     bool sata;
     bool pit;
+    bool static_prt;
 
     /* RAM information (sizes, addresses, configuration): */
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
@@ -93,6 +94,7 @@ struct PCMachineState {
 #define PC_MACHINE_SMBUS            "smbus"
 #define PC_MACHINE_SATA             "sata"
 #define PC_MACHINE_PIT              "pit"
+#define PC_MACHINE_STATIC_PRT       "static-prt"
 
 /**
  * PCMachineClass:
