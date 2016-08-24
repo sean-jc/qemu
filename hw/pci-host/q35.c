@@ -464,9 +464,18 @@ static void mch_reset(DeviceState *qdev)
 {
     PCIDevice *d = PCI_DEVICE(qdev);
     MCHPCIState *mch = MCH_PCI_DEVICE(d);
+    PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
+    uint64_t pciexbar = MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT;
 
-    pci_set_quad(d->config + MCH_HOST_BRIDGE_PCIEXBAR,
-                 MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT);
+    if (!pcms->fw_cfg) {
+        pciexbar |= MCH_HOST_BRIDGE_PCIEXBAR_LENGTH_256M;
+        pciexbar |= MCH_HOST_BRIDGE_PCIEXBAREN;
+
+        e820_add_entry(MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT,
+                       MCH_HOST_BRIDGE_PCIEXBAR_MAX, E820_RESERVED);
+    }
+
+    pci_set_quad(d->config + MCH_HOST_BRIDGE_PCIEXBAR, pciexbar);
 
     d->config[MCH_HOST_BRIDGE_SMRAM] = MCH_HOST_BRIDGE_SMRAM_DEFAULT;
     d->config[MCH_HOST_BRIDGE_ESMRAMC] = MCH_HOST_BRIDGE_ESMRAMC_DEFAULT;
@@ -545,6 +554,8 @@ static void mch_realize(PCIDevice *d, Error **errp)
                  mch->pci_address_space, &mch->pam_regions[i+1],
                  PAM_EXPAN_BASE + i * PAM_EXPAN_SIZE, PAM_EXPAN_SIZE);
     }
+
+    mch_reset(DEVICE(mch));
 }
 
 uint64_t mch_mcfg_base(void)
