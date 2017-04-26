@@ -2716,7 +2716,8 @@ static void mem_commit(MemoryListener *listener)
 
     atomic_rcu_set(&as->dispatch, next);
     if (cur) {
-        call_rcu(cur, address_space_dispatch_free, rcu);
+        synchronize_rcu();
+        address_space_dispatch_free(cur);
     }
 }
 
@@ -2762,7 +2763,8 @@ void address_space_destroy_dispatch(AddressSpace *as)
 
     atomic_rcu_set(&as->dispatch, NULL);
     if (d) {
-        call_rcu(d, address_space_dispatch_free, rcu);
+        synchronize_rcu();
+        address_space_dispatch_free(d);
     }
 }
 
@@ -2914,15 +2916,22 @@ static bool prepare_mmio_access(MemoryRegion *mr)
 static MemTxResult address_space_write_continue(AddressSpace *as, hwaddr addr,
                                                 MemTxAttrs attrs,
                                                 const uint8_t *buf,
-                                                int len, hwaddr addr1,
-                                                hwaddr l, MemoryRegion *mr)
+                                                int len)
 {
+    hwaddr addr1, l;
     uint8_t *ptr;
     uint64_t val;
+    MemoryRegion *mr;
     MemTxResult result = MEMTX_OK;
     bool release_lock = false;
 
     for (;;) {
+        l = len;
+        rcu_read_lock();
+        mr = address_space_translate(as, addr, &addr1, &l, true);
+        memory_region_ref(mr);
+        rcu_read_unlock();
+
         if (!memory_access_is_direct(mr, true)) {
             release_lock |= prepare_mmio_access(mr);
             l = memory_access_size(mr, l, addr1);
@@ -2963,6 +2972,7 @@ static MemTxResult address_space_write_continue(AddressSpace *as, hwaddr addr,
             invalidate_and_set_dirty(mr, addr1, l);
         }
 
+        memory_region_unref(mr);
         if (release_lock) {
             qemu_mutex_unlock_iothread();
             release_lock = false;
@@ -2976,8 +2986,6 @@ static MemTxResult address_space_write_continue(AddressSpace *as, hwaddr addr,
             break;
         }
 
-        l = len;
-        mr = address_space_translate(as, addr, &addr1, &l, true);
     }
 
     return result;
@@ -2986,18 +2994,10 @@ static MemTxResult address_space_write_continue(AddressSpace *as, hwaddr addr,
 MemTxResult address_space_write(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
                                 const uint8_t *buf, int len)
 {
-    hwaddr l;
-    hwaddr addr1;
-    MemoryRegion *mr;
     MemTxResult result = MEMTX_OK;
 
     if (len > 0) {
-        rcu_read_lock();
-        l = len;
-        mr = address_space_translate(as, addr, &addr1, &l, true);
-        result = address_space_write_continue(as, addr, attrs, buf, len,
-                                              addr1, l, mr);
-        rcu_read_unlock();
+        result = address_space_write_continue(as, addr, attrs, buf, len);
     }
 
     return result;
