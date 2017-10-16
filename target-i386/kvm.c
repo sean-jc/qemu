@@ -705,6 +705,7 @@ static int hyperv_handle_properties(CPUState *cs)
 }
 
 static Error *invtsc_mig_blocker;
+static Error *sgx_epc_mig_blocker;
 
 #define KVM_MAX_CPUID_ENTRIES  100
 
@@ -999,6 +1000,19 @@ int kvm_arch_init_vcpu(CPUState *cs)
     c = cpuid_find_entry(&cpuid_data.cpuid, 7, 0);
     if (c && (c->ebx & CPUID_7_0_EBX_SGX)) {
         has_msr_feature_control = true;
+
+        /*
+         * Enclaves are not migratable.  If we configured a virtual
+         * EPC for the VM then block migration.
+         */
+        if (kvm_enabled() && sgx_epc_mig_blocker == NULL) {
+            c = cpuid_find_entry(&cpuid_data.cpuid, 0x12, 2);
+            if (c && (c->ecx || c->edx)) {
+                error_setg(&sgx_epc_mig_blocker,
+                    "Migration disabled: VM has virtual EPC allocated");
+                migrate_add_blocker(sgx_epc_mig_blocker);
+            }
+        }
     }
 
     cpuid_data.cpuid.padding = 0;
