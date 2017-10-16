@@ -67,6 +67,8 @@ struct PCMachineState {
     /* RAM information (sizes, addresses, configuration): */
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
 
+    ram_addr_t epc_size, epc_base;
+
     /* CPU and apic information: */
     bool apic_xrupt_override;
     unsigned apic_id_limit;
@@ -88,6 +90,7 @@ struct PCMachineState {
 #define PC_MACHINE_VMPORT           "vmport"
 #define PC_MACHINE_SMM              "smm"
 #define PC_MACHINE_NVDIMM           "nvdimm"
+#define PC_MACHINE_EPC_SIZE         "epc"
 
 /**
  * PCMachineClass:
@@ -235,6 +238,7 @@ void pc_hot_add_cpu(const int64_t id, Error **errp);
 void pc_acpi_init(const char *default_dsdt);
 
 void pc_guest_info_init(PCMachineState *pcms);
+void pc_machine_init_sgx_epc(MachineState *machine);
 
 #define PCI_HOST_PROP_PCI_HOLE_START   "pci-hole-start"
 #define PCI_HOST_PROP_PCI_HOLE_END     "pci-hole-end"
