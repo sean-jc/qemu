@@ -234,6 +234,7 @@ struct kvm_hyperv_exit {
 #define KVM_EXIT_S390_STSI        25
 #define KVM_EXIT_IOAPIC_EOI       26
 #define KVM_EXIT_HYPERV           27
+#define KVM_EXIT_EPC_ACTIVITY     28
 
 /* For KVM_EXIT_INTERNAL_ERROR */
 /* Emulate instruction failed. */
@@ -391,6 +392,10 @@ struct kvm_run {
 		} eoi;
 		/* KVM_EXIT_HYPERV */
 		struct kvm_hyperv_exit hyperv;
+		/* KVM_EXIT_EPC_ACTIVITY */
+		struct {
+			__u8 in_use;
+		} epc;
 		/* Fix the size of the union. */
 		char padding[256];
 	};
@@ -929,6 +934,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_PPC_SMT_POSSIBLE 147
 #define KVM_CAP_HYPERV_SYNIC2 148
 #define KVM_CAP_HYPERV_VP_INDEX 149
+#define KVM_CAP_X86_VIRTUAL_EPC 150
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
