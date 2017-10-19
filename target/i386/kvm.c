@@ -175,6 +175,32 @@ int kvm_enable_virtual_epc(MachineState *machine)
     }
     return ret;
 }
+
+static Error *virtual_epc_mig_blocker;
+static int kvm_virtual_epc_activity(bool in_use)
+{
+    /*
+     * Enclaves are not migratable due to enclave pages being tied
+     * to the physical CPU, even if they are evicted from the EPC.
+     * (Un)Block migration if the VM EPC usage changes.
+     */
+    if (in_use != (virtual_epc_mig_blocker != NULL)) {
+        if (in_use) {
+            Error *local_err = NULL;
+            error_setg(&virtual_epc_mig_blocker,
+                "Migration disabled: VM has acccessed virtual EPC");
+            migrate_add_blocker(virtual_epc_mig_blocker, &local_err);
+            if (local_err) {
+                error_report_err(local_err);
+                error_free(virtual_epc_mig_blocker);
+                return -1;
+            }
+        } else {
+            migrate_del_blocker(virtual_epc_mig_blocker);
+        }
+    }
+    return 0;
+}
 #endif
 
 static int kvm_get_tsc(CPUState *cs)
@@ -3224,6 +3250,11 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         ioapic_eoi_broadcast(run->eoi.vector);
         ret = 0;
         break;
+#ifdef KVM_CAP_X86_VIRTUAL_EPC
+    case KVM_EXIT_EPC_ACTIVITY:
+        ret = kvm_virtual_epc_activity(run->epc.in_use);
+        break;
+#endif
     default:
         fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
         ret = -1;
