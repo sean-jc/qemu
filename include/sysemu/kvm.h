@@ -246,6 +246,7 @@ bool kvm_memcrypt_enabled(void);
  */
 int kvm_memcrypt_encrypt_data(uint8_t *ptr, uint64_t len);
 
+int kvm_enable_sgx_epc_reclaim(int epc_fd, Error **errp);
 
 #ifdef NEED_CPU_H
 #include "cpu.h"

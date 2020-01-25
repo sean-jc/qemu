@@ -3652,6 +3652,25 @@ bool kvm_enable_sgx_provisioning(KVMState *s)
     return MEMORIZE(__kvm_enable_sgx_provisioning(s), has_sgx_provisioning);
 }
 
+int kvm_enable_sgx_epc_reclaim(int epc_fd, Error **errp)
+{
+    KVMState *s = kvm_state;
+    int ret;
+
+    if (!kvm_vm_check_extension(s, KVM_CAP_SGX_EPC_RECLAIM)) {
+        error_setg(errp, "SGX EPC reclaim not supported by KVM");
+        return -ENOSYS;
+    }
+
+    ret = kvm_vm_enable_cap(s, KVM_CAP_SGX_EPC_RECLAIM, 0, epc_fd);
+    if (ret) {
+        error_setg_errno(errp, errno, "failed to enable SGX EPC reclaim");
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
 static bool host_supports_vmx(void)
 {
     uint32_t ecx, unused;
