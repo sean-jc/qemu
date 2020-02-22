@@ -6283,6 +6283,8 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
 
     if (!kvm_enabled() || !cpu->expose_kvm) {
         env->features[FEAT_KVM] = 0;
+    } else if (!kvm_irqchip_in_kernel() && !kvm_irqchip_is_split()) {
+        env->features[FEAT_KVM] &= ~(1 << KVM_FEATURE_PV_SEND_IPI);
     }
 
     x86_cpu_enable_xsave_components(cpu);
