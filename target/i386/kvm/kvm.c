@@ -5301,9 +5301,49 @@ static int kvm_get_nested_state(X86CPU *cpu)
     return ret;
 }
 
+
+#define KVM_X86_REG_TYPE_MSR		2
+#define KVM_X86_REG_TYPE_KVM		3
+
+#define KVM_X86_KVM_REG_SIZE(reg)						\
+({										\
+	reg == KVM_REG_GUEST_SSP ? KVM_REG_SIZE_U64 : 0;			\
+})
+
+#define KVM_X86_REG_TYPE_SIZE(type, reg)					\
+({										\
+	__u64 type_size = (__u64)type << 32;					\
+										\
+	type_size |= type == KVM_X86_REG_TYPE_MSR ? KVM_REG_SIZE_U64 :		\
+		     type == KVM_X86_REG_TYPE_KVM ? KVM_X86_KVM_REG_SIZE(reg) :	\
+		     0;								\
+	type_size;								\
+})
+
+#define KVM_X86_REG_ENCODE(type, index)				\
+	(KVM_REG_X86 | KVM_X86_REG_TYPE_SIZE(type, index) | index)
+
+#define KVM_X86_REG_MSR(index)					\
+	KVM_X86_REG_ENCODE(KVM_X86_REG_TYPE_MSR, index)
+#define KVM_X86_REG_KVM(index)					\
+	KVM_X86_REG_ENCODE(KVM_X86_REG_TYPE_KVM, index)
+
+/* KVM-defined registers starting from 0 */
+#define KVM_REG_GUEST_SSP	0
+
+static bool has_cet_ssp(CPUState *cpu)
+{
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+
+    return !!((env->features[FEAT_7_0_ECX] & CPUID_7_0_ECX_CET_SHSTK) ||
+              (env->features[FEAT_7_0_EDX] & CPUID_7_0_EDX_CET_IBT));
+}
+
 int kvm_arch_put_registers(CPUState *cpu, int level, Error **errp)
 {
     X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
     int ret;
 
     assert(cpu_is_stopped(cpu) || qemu_cpu_is_self(cpu));
@@ -5375,6 +5415,14 @@ int kvm_arch_put_registers(CPUState *cpu, int level, Error **errp)
         error_setg_errno(errp, -ret, "Failed to set MSRs");
         return ret;
     }
+
+    if (has_cet_ssp(cpu)) {
+        ret = kvm_set_one_reg(cpu, KVM_X86_REG_KVM(KVM_REG_GUEST_SSP), &env->guest_ssp);
+        if (ret) {
+            error_report("Failed to set KVM_REG_MSR, ret = %d\n", ret);
+        }
+    }
+
     ret = kvm_put_vcpu_events(x86_cpu, level);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to set vCPU events");
@@ -5404,6 +5452,7 @@ int kvm_arch_put_registers(CPUState *cpu, int level, Error **errp)
 int kvm_arch_get_registers(CPUState *cs, Error **errp)
 {
     X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
     int ret;
 
     assert(cpu_is_stopped(cs) || qemu_cpu_is_self(cs));
@@ -5446,6 +5495,12 @@ int kvm_arch_get_registers(CPUState *cs, Error **errp)
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Failed to get MSRs");
         goto out;
+    }
+    if (has_cet_ssp(cs)) {
+        ret = kvm_get_one_reg(cs, KVM_X86_REG_KVM(KVM_REG_GUEST_SSP), &env->guest_ssp);
+        if (ret) {
+                error_report("Failed to get KVM_REG_MSR, ret = %d\n", ret);
+        }
     }
     ret = kvm_get_apic(cpu);
     if (ret < 0) {
