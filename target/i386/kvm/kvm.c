@@ -2100,6 +2100,15 @@ int kvm_arch_init_vcpu(CPUState *cs)
         }
     }
 
+    if (env->tsc_khz) {
+        if (env->cpuid_level < 0x15) {
+            env->cpuid_level = 0x15;
+        }
+        if (env->cpuid_min_level < 0x15) {
+            env->cpuid_min_level = 0x15;
+        }
+    }
+
     env->apic_bus_freq = KVM_APIC_BUS_FREQUENCY;
 
     /*

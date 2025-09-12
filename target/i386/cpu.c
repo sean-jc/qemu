@@ -7158,6 +7158,29 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         }
         break;
     }
+    case 0x15: {
+        *eax = 0;
+        *ebx = 0;
+        *ecx = 0;
+        *edx = 0;
+        if (!kvm_enabled() || !env->tsc_khz) {
+            break;
+        }
+        /*
+         * The core crystal frequency needs to match the APIC bus frequency,
+         * which KVM defaults to 1Ghz.  As of kernel v6.11, KVM supports a
+         * "userspace" defined APIC bus frequency, in quotes because the only
+         * reason to deviate from 1Ghz is because the TDX Module hardcodes the
+         * core crystal frequency to 25Mhz (which is the frequency on most
+         * modern server Intel CPUs).  Don't be stupid like TDX; use KVM's
+         * default APIC bus frequency, but adjust the denominator to provide
+         * 25Mhz granularity for the TSC frequency.
+         */
+        *eax = 1000000000 / 25000000;
+        *ebx = env->tsc_khz / 25000;
+        *ecx = 1000000000;
+        break;
+    }
     case 0x1D: {
         /* AMX TILE, for now hardcoded for Sapphire Rapids*/
         *eax = 0;
