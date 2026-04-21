@@ -7163,7 +7163,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ebx = 0;
         *ecx = 0;
         *edx = 0;
-        if (!kvm_enabled() || !env->tsc_khz) {
+        if (!kvm_enabled() || !env->tsc_khz || sev_snp_enabled()) {
             break;
         }
         /*
@@ -7438,6 +7438,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *eax = *ebx = *ecx = *edx = 0;
         *eax = env->features[FEAT_8000_0021_EAX];
         *ebx = env->features[FEAT_8000_0021_EBX];
+        if (sev_snp_enabled())
+            *eax &= ~0x200;
         break;
     default:
         /* reserved values: zero */

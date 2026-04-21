@@ -2100,7 +2100,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         }
     }
 
-    if (env->tsc_khz) {
+    if (env->tsc_khz && !sev_snp_enabled()) {
         if (env->cpuid_level < 0x15) {
             env->cpuid_level = 0x15;
         }
